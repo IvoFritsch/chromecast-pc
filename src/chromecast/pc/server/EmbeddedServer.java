@@ -39,6 +39,7 @@ public class EmbeddedServer implements Runnable {
             
             ServletContextHandler handler = new ServletContextHandler(server, "/");
             handler.addServlet(AppServlet.class, "/app/*");
+            handler.addServlet(StreamingServlet.class, "/stream/*");
 //            ctxHand.addServlet(new ServletHolder(new AppServlet()), "/app");
             
             server.setHandler(handler);

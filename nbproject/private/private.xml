@@ -3,11 +3,9 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/E:/workspace/chromecast-pc/src/chromecast/pc/NoLogging.java</file>
-            <file>file:/E:/workspace/chromecast-pc/src/chromecast/pc/server/EmbeddedServer.java</file>
-            <file>file:/E:/workspace/chromecast-pc/src/chromecast/pc/server/AppServlet.java</file>
-            <file>file:/E:/workspace/chromecast-pc/src/su/litvak/chromecast/api/v2/Status.java</file>
-            <file>file:/E:/workspace/chromecast-pc/src/chromecast/pc/ChromecastPc.java</file>
+            <file>file:/C:/Users/Ivo/Documents/workspace/chromecast-pc/src/chromecast/pc/server/EmbeddedServer.java</file>
+            <file>file:/C:/Users/Ivo/Documents/workspace/chromecast-pc/src/chromecast/pc/server/AppServlet.java</file>
+            <file>file:/C:/Users/Ivo/Documents/workspace/chromecast-pc/src/chromecast/pc/server/StreamingServlet.java</file>
         </group>
     </open-files>
 </project-private>

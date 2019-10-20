@@ -6,12 +6,12 @@
 package chromecast.pc.server;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.UUID;
 import javax.imageio.ImageIO;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -20,13 +20,13 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.jcodec.api.FrameGrab;
-import org.jcodec.common.DemuxerTrack;
+import org.jcodec.common.DemuxerTrackMeta;
 import org.jcodec.common.io.FileChannelWrapper;
 import org.jcodec.common.io.NIOUtils;
 import org.jcodec.common.model.Picture;
 import org.jcodec.containers.mp4.demuxer.MP4Demuxer;
-import org.jcodec.containers.mp4.demuxer.MP4DemuxerTrackMeta;
 import org.jcodec.scale.AWTUtil;
+import org.json.JSONObject;
 
 /**
  * Servlet that provides the video stream, it supports HTTP range requests to increase streaming seek speed
@@ -35,10 +35,16 @@ import org.jcodec.scale.AWTUtil;
  */
 public class StreamingServlet extends HttpServlet {
     
-    private static File movie = new File("test-videos/wildlife.mp4");
+    private volatile static File serving = null;
+    private volatile static String ETag = null;
+    private volatile static int openStreams = 0;
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        if(serving == null){
+            resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
         String uri = req.getRequestURI();
         if(!uri.endsWith("/")){
             uri += "/";
@@ -49,23 +55,28 @@ public class StreamingServlet extends HttpServlet {
             index++;
         }
         if(splitted.length > 2){
-            if(splitted[2].equals("frameAt")){
-                doFrameAt(splitted, req, resp);
-                return;
+            switch(splitted[2]){
+                case "frameAt":
+                    doFrameAt(splitted, req, resp);
+                    break;
+                case "metadata":
+                    doMetadata(req, resp);
+                    break;
             }
+            return;
         }
         
         // obtains ServletContext
         ServletContext context = getServletContext();
         // gets MIME type of the file
-        String mimeType = context.getMimeType(movie.getName());
+        String mimeType = context.getMimeType(serving.getName());
         if (mimeType == null) {
             // set to binary type if MIME mapping not found
             mimeType = "application/octet-stream";
         }   // modifies response
         resp.setContentType(mimeType);
         resp.setHeader("Accept-Ranges", "bytes");
-        resp.setHeader("ETag", "cab08b36195edb1a1231d2d09fa450e0");
+        resp.setHeader("ETag", ETag);
         String range = req.getHeader("Range");
         int rangeBytes = 0;
         if(range != null){
@@ -76,7 +87,8 @@ public class StreamingServlet extends HttpServlet {
         } else {
             resp.setStatus(HttpServletResponse.SC_OK);
         }
-        try(InputStream is = new FileInputStream(movie); ServletOutputStream os = resp.getOutputStream()){
+        try(InputStream is = new FileInputStream(serving); ServletOutputStream os = resp.getOutputStream()){
+            openStreams++;
             int totalLength = is.available();
             if(rangeBytes > 0){
                 resp.setHeader("Content-Range", "bytes "+rangeBytes+"-"+(totalLength-1)+"/"+totalLength);
@@ -89,10 +101,12 @@ public class StreamingServlet extends HttpServlet {
             }
         } catch (Exception e){
             //e.printStackTrace();
+        } finally {
+            openStreams--;
         }
     }
     
-    protected void doFrameAt(String[] splitted, HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    private void doFrameAt(String[] splitted, HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         if(splitted.length != 4){
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
@@ -100,33 +114,60 @@ public class StreamingServlet extends HttpServlet {
         int second;
         FileChannelWrapper ch = null;
         try{
+            openStreams++;
             second = new Integer(splitted[3]);
             Picture picture;
             BufferedImage bufferedImage;
-            ch = NIOUtils.readableChannel(movie);
+            ch = NIOUtils.readableChannel(serving);
             picture = FrameGrab.createFrameGrab(ch).seekToSecondSloppy(second).getNativeFrame();
-            bufferedImage = AWTUtil.toBufferedImage(picture);
-            ByteArrayOutputStream memOs = new ByteArrayOutputStream(1000);
-            ImageIO.write(bufferedImage, "png", memOs);
-            byte[] imageBytes = memOs.toByteArray();
-            resp.setContentType("image/png");
-            try(ServletOutputStream os = resp.getOutputStream()){
-                os.write(imageBytes);
+            resp.setContentType("image/jpeg");
+            try(ServletOutputStream os = resp.getOutputStream(); ByteArrayOutputStream memOs = new ByteArrayOutputStream()){
+                bufferedImage = AWTUtil.toBufferedImage(picture);
+                // Writes to an in-memory OutputStream instead of directly to the socket because this method take long to convert the image, creating an ugly load in the frontend
+                ImageIO.write(bufferedImage, "jpeg", memOs);
+                memOs.writeTo(os);
             } catch (Exception e){
                 throw e;
-            }
+            } 
         } catch(Exception e){
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         } finally {
             NIOUtils.closeQuietly(ch);
+            openStreams--;
         }
     }
     
-    public static void main(String[] args) throws IOException {
-        FileChannelWrapper ch = NIOUtils.readableFileChannel(movie.toString());
+    private void doMetadata(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        FileChannelWrapper ch = NIOUtils.readableFileChannel(serving.toString());
         MP4Demuxer demuxer = MP4Demuxer.createMP4Demuxer(ch);
-        DemuxerTrack video_track = demuxer.getVideoTrack();
-        System.out.println("video_duration: " + video_track.getMeta().getTotalDuration());
-        System.out.println("video_frame: " + video_track.getMeta().getTotalFrames());
+        DemuxerTrackMeta meta = demuxer.getVideoTrack().getMeta();
+        
+        JSONObject ret = new JSONObject().put("duration", (int) meta.getTotalDuration());
+        
+        try(ServletOutputStream os = resp.getOutputStream()){
+            os.print(ret.toString());
+        } catch (Exception e){
+        }
+    }
+    
+    public static boolean startServing(File f){
+        if(serving != null){
+            return false;
+        }
+        if(!f.exists() || f.isDirectory()){
+            return false;
+        }
+        ETag = UUID.randomUUID().toString();
+        serving = f;
+        return true;
+    }
+    
+    public static boolean stopServing(){
+        if(openStreams > 0){
+            return false;
+        }
+        serving = null;
+        ETag = null;
+        return true;
     }
 }

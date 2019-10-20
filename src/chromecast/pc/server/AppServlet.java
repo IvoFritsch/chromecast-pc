@@ -5,6 +5,7 @@
  */
 package chromecast.pc.server;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -15,7 +16,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import org.apache.commons.io.FileUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import su.litvak.chromecast.api.v2.ChromeCasts;
@@ -135,12 +136,20 @@ public class AppServlet extends HttpServlet{
     
     private void supplyApi(String subPath, HttpServletRequest req, HttpServletResponse resp) throws IOException{
         PrintWriter writer = resp.getWriter();
-        if(!subPath.endsWith("/"))subPath += "/";
-        String resource = subPath.split("/")[0];
+        String resource = subPath.split("/", 2)[0];
         JSONObject respJSON = null;
         switch(resource){
-            case "GET list":
+            case "GET list-chromecasts":
                 respJSON = listChromeCasts();
+                break;
+            case "GET list-directory":
+                respJSON = listDirectory(subPath.split("/", 2)[1]);
+                break;
+            case "GET start-stream-serve":
+                respJSON = startStreamServe(subPath.split("/", 2)[1]);
+                break;
+            case "GET stop-stream-serve":
+                respJSON = stopStreamServe();
                 break;
             default:
                 respJSON = new JSONObject().put("status", "NOT_FOUND");
@@ -158,5 +167,30 @@ public class AppServlet extends HttpServlet{
         return new JSONObject().put("chromecasts", arr);
     }
     
+    private JSONObject listDirectory(String directory){
+        try{
+            Collection<File> filesList = FileUtils.listFiles(new File(directory), new String[]{"mp4", "mp3"}, false);
+            JSONArray arr = new JSONArray();
+            filesList.stream().map(f -> new JSONObject().put("name", f.getName()).put("isDir", f.isDirectory())).forEach(f -> arr.put(f));
+            return new JSONObject().put("files", arr);
+        }catch (Exception e){
+            return new JSONObject().put("error", true);
+        }
+    }
     
+    private JSONObject startStreamServe(String file){
+        boolean success = StreamingServlet.startServing(new File(file));
+        if(!success){
+            return new JSONObject().put("error", true);
+        }
+        return null;
+    }
+    
+    private JSONObject stopStreamServe(){
+        boolean success = StreamingServlet.stopServing();
+        if(!success){
+            return new JSONObject().put("error", true);
+        }
+        return null;
+    }
 }

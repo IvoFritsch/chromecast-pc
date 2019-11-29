@@ -99,7 +99,26 @@ public final class ChromeCasts {
             } else {
                 mDNS = JmDNS.create();
             }
-            mDNS.addServiceListener(ChromeCast.SERVICE_TYPE, listener);
+           //mDNS.addServiceListener("urn:samsung.com:service:MultiScreenService:1", new SampleListener());
+           mDNS.addServiceListener(ChromeCast.SERVICE_TYPE, listener);
+            
+        }
+    }
+    
+    private static class SampleListener implements ServiceListener {
+        @Override
+        public void serviceAdded(ServiceEvent event) {
+            System.out.println("Service added: " + event.getInfo());
+        }
+
+        @Override
+        public void serviceRemoved(ServiceEvent event) {
+            System.out.println("Service removed: " + event.getInfo());
+        }
+
+        @Override
+        public void serviceResolved(ServiceEvent event) {
+            System.out.println("Service resolved: " + event.getInfo());
         }
     }
 

@@ -78,9 +78,9 @@ public class StreamingServlet extends HttpServlet {
         resp.setHeader("Accept-Ranges", "bytes");
         resp.setHeader("ETag", ETag);
         String range = req.getHeader("Range");
-        int rangeBytes = 0;
+        long rangeBytes = 0;
         if(range != null){
-            rangeBytes = new Integer(range.replace("bytes=", "").split("\\-")[0]);
+            rangeBytes = new Long(range.replace("bytes=", "").split("\\-")[0]);
         }
         if(rangeBytes > 0){
             resp.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
@@ -89,13 +89,13 @@ public class StreamingServlet extends HttpServlet {
         }
         try(InputStream is = new FileInputStream(serving); ServletOutputStream os = resp.getOutputStream()){
             openStreams++;
-            int totalLength = is.available();
+            long totalLength = serving.length();
             if(rangeBytes > 0){
                 resp.setHeader("Content-Range", "bytes "+rangeBytes+"-"+(totalLength-1)+"/"+totalLength);
             }
             is.skip(rangeBytes);
-            resp.setContentLength(is.available());
-            byte[] arr = new byte[5096];
+            resp.setHeader("Content-Length", Long.toString(totalLength - rangeBytes));
+            byte[] arr = new byte[10192];
             while(is.read(arr) != -1){
                 os.write(arr);
             }
@@ -151,6 +151,7 @@ public class StreamingServlet extends HttpServlet {
     }
     
     public static boolean startServing(File f){
+        
         if(serving != null){
             return false;
         }

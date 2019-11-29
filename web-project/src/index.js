@@ -6,7 +6,7 @@ import * as serviceWorker from './serviceWorker';
 import HWApiFetch from 'hw-api-fetch'
  
 const properties = {
-  host: 'http://localhost:3132/app/api/',
+  host: 'http://192.168.0.11:3132/app/api/',
   cookiesToHeader: [],
   beforeReturn: [],
   log: true,

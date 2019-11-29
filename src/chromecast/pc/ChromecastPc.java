@@ -7,12 +7,7 @@ package chromecast.pc;
 
 import chromecast.pc.server.EmbeddedServer;
 import java.io.IOException;
-import java.util.List;
-import java.util.Scanner;
-import su.litvak.chromecast.api.v2.ChromeCast;
 import su.litvak.chromecast.api.v2.ChromeCasts;
-import su.litvak.chromecast.api.v2.MediaStatus;
-import su.litvak.chromecast.api.v2.Status;
 
 /**
  *
@@ -24,8 +19,9 @@ public class ChromecastPc {
     
     /**
      * @param args the command line arguments
+     * @throws java.io.IOException
      */
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException {
         
         ChromeCasts.startDiscovery();
         EmbeddedServer.start();

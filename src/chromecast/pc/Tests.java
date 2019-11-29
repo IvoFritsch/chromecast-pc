@@ -17,6 +17,8 @@ import su.litvak.chromecast.api.v2.ChromeCasts;
 public class Tests {
     public static void main(String[] args) throws IOException, InterruptedException {
         
+        System.out.println(Integer.MAX_VALUE);
+        if(1==1) return;
         ChromeCasts.startDiscovery();
         //EmbeddedServer.start();
         

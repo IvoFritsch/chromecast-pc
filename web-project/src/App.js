@@ -4,6 +4,7 @@ import { MdFolder, MdLocalMovies, MdKeyboardArrowRight, MdPlayArrow, MdCast, MdT
 import { useTheme, ThemeProvider } from '@material-ui/styles';
 import './App.css';
 import DeviceSelector from './DeviceSelector';
+import FileSelector from './FileSelector';
 
 class App extends Component{
 
@@ -24,7 +25,7 @@ class App extends Component{
         <CssBaseline />
           <AppBar color={'inherit'}>
             <Toolbar style={{width:'100%'}}>
-              <Typography edge="start" variant="h6">Chromecast PC</Typography>
+              <Typography edge="start" variant="h6" style={{flexGrow:'1'}}>Chromecast PC</Typography>
                 <IconButton color="inherit" onClick={() => this.setState({selectingDevice: true})}>
                   <MdCast />
                 </IconButton>
@@ -34,14 +35,18 @@ class App extends Component{
           <div style={{padding:'20px'}}>
           <Typography variant="h6">Welcome to Chromecast PC</Typography>
           <br/>
-          <Typography variant="h7">You're not connected to any device.</Typography>
+          <Typography variant="body1">You're not connected to any device.</Typography>
           <Typography style={{color:'#00aae1'}}>To start casting, click the <MdCast style={{fontSize:'15px'}}/> icon above.</Typography>
           </div>
           
           <DeviceSelector onClose={() => this.setState({selectingDevice: false})} open={this.state.selectingDevice}/>
+          <FileSelector />
 
+
+          
+          
         
-      </div>
+        </div>
       </MuiThemeProvider>
     );
   }
@@ -74,7 +79,7 @@ export default App;
 
 
 /*
-<div style={{position:'fixed', top: '0px', left: '0px', height:'48px', width:'100%'}}>
+      <div style={{position:'fixed', top: '0px', left: '0px', height:'48px', width:'100%'}}>
         <div className='scrollmenu'>
           <a href="#home">C</a>
           <MdKeyboardArrowRight/>

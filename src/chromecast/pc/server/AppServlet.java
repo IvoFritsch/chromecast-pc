@@ -10,13 +10,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.util.Collection;
+import java.util.stream.Stream;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.apache.commons.io.filefilter.IOFileFilter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import su.litvak.chromecast.api.v2.ChromeCasts;
@@ -154,9 +158,12 @@ public class AppServlet extends HttpServlet{
             default:
                 respJSON = new JSONObject().put("status", "NOT_FOUND");
         }
-        if(respJSON != null){
-            writer.println(respJSON.toString());
+        if(respJSON == null){
+            respJSON = new JSONObject().put("status", "OK");
         }
+        if(respJSON.has("error") && !respJSON.has("status")) respJSON.put("status", "ERROR");
+        if(!respJSON.has("status")) respJSON.put("status", "OK");
+        writer.println(respJSON.toString());
     }
     
     private JSONObject listChromeCasts(){
@@ -168,14 +175,18 @@ public class AppServlet extends HttpServlet{
     }
     
     private JSONObject listDirectory(String directory){
-        try{
-            Collection<File> filesList = FileUtils.listFiles(new File(directory), new String[]{"mp4", "mp3"}, false);
-            JSONArray arr = new JSONArray();
-            filesList.stream().map(f -> new JSONObject().put("name", f.getName()).put("isDir", f.isDirectory())).forEach(f -> arr.put(f));
-            return new JSONObject().put("files", arr);
-        }catch (Exception e){
-            return new JSONObject().put("error", true);
+        JSONArray arr = new JSONArray();
+        if(directory == null || directory.isEmpty()){
+            Stream.of(File.listRoots()).map(f -> new JSONObject().put("name", f.getPath().replace("/", "").replace("\\", "")).put("type", "drive")).forEach(f -> arr.put(f));
+        } else {
+            try{
+                
+                Files.list(new File(directory).toPath()).map(p -> p.toFile()).filter(f -> filterMovieSongOrDir(f)).map(f -> new JSONObject().put("name", f.getName()).put("type", f.isDirectory() ? "folder" : "file")).forEach(f -> arr.put(f));
+            }catch (Exception e){
+                return new JSONObject().put("error", true);
+            }
         }
+        return new JSONObject().put("files", arr);
     }
     
     private JSONObject startStreamServe(String file){
@@ -193,4 +204,10 @@ public class AppServlet extends HttpServlet{
         }
         return null;
     }
+    
+    public static boolean filterMovieSongOrDir(File file){
+        String name = file.getName();
+        return file.isDirectory() || name.endsWith(".mp4") || name.endsWith(".mp3");
+    }
+    
 }
